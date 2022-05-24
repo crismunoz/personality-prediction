@@ -1,3 +1,4 @@
-FROM huggingface/transformers-tensorflow-gpu
-RUN pip install torch torchvision torchaudio matplotlib scikit-learn pandas numpy tqdm scipy
-RUN pip install openpyxl preprocessor sentencepiece
+#FROM huggingface/transformers-tensorflow-gpu
+FROM huggingface/transformers-pytorch-gpu
+RUN pip install matplotlib scikit-learn pandas numpy tqdm scipy
+RUN pip install openpyxl tweet-preprocessor sacremoses sentencepiece

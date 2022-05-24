@@ -1,3 +1,4 @@
+
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
@@ -157,7 +158,7 @@ if __name__ == "__main__":
             hidden_features = extract_bert_features(input_ids, model, mode, n_hl, embed_mode, hidden_features)
     print(len(hidden_features))
     Path(op_dir).mkdir(parents=True, exist_ok=True)
-    pkl_file_name = dataset + "-" + embed + "-" + embed_mode + "-" + mode + "-" + chunk_id +".pkl"
+    pkl_file_name = dataset + "-" + embed + "-" + embed_mode + "-" + mode + "-" + str(chunk_id) +".pkl"
 
     file = open(os.path.join(op_dir, pkl_file_name), "wb")
     pickle.dump(zip(all_author_ids, hidden_features), file)
