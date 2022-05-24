@@ -5,10 +5,10 @@ import pickle
 import re
 import time
 from datetime import timedelta
-
+import sys
 import torch
 from torch.utils.data import DataLoader, Dataset
-from transformers import *
+from transformers import BertModel, BertTokenizer
 
 import utils.gen_utils as utils
 from utils.data_utils import MyMapDataset
@@ -30,7 +30,7 @@ else:
     print("running on cpu")
 
 
-def extract_bert_features(input_ids, mode, n_hl):
+def extract_bert_features(input_ids, model, mode, n_hl, embed_mode, hidden_features):
     """Extract bert embedding for each input."""
     if mode == "docbert":
         # print(input_ids.shape)
@@ -66,17 +66,18 @@ def extract_bert_features(input_ids, mode, n_hl):
                 tmp.append((bert_output[2][ii + 1].cpu().numpy()).mean(axis=1))
 
         hidden_features.append(np.array(tmp))
-        return hidden_features
+    return hidden_features
 
 
 def get_model(embed):
     # * Model          | Tokenizer          | Pretrained weights shortcut
     # MODEL=(DistilBertModel, DistilBertTokenizer, 'distilbert-base-uncased')
+    print(embed, "bert-base", embed == "bert-base")
     if embed == "bert-base":
         n_hl = 12
         hidden_dim = 768
         MODEL = (BertModel, BertTokenizer, "bert-base-uncased")
-
+        print("*********************")
     elif embed == "bert-large":
         n_hl = 24
         hidden_dim = 1024
@@ -118,6 +119,7 @@ if __name__ == "__main__":
         "{} | {} | {} | {} | {}".format(dataset, embed, token_length, mode, embed_mode)
     )
     batch_size = int(32)
+    print(embed)
     model, tokenizer, n_hl, hidden_dim = get_model(embed)
 
     # create a class which can be passed to the pyTorch dataloader. responsible for returning tokenized and encoded values of the dataset
@@ -150,8 +152,8 @@ if __name__ == "__main__":
         with torch.no_grad():
             all_targets.append(targets.cpu().numpy())
             all_author_ids.append(author_ids.cpu().numpy())
-            extract_bert_features(input_ids, mode, n_hl)
-
+            hidden_features = extract_bert_features(input_ids, model, mode, n_hl, embed_mode, hidden_features)
+    print(len(hidden_features))
     Path(op_dir).mkdir(parents=True, exist_ok=True)
     pkl_file_name = dataset + "-" + embed + "-" + embed_mode + "-" + mode + ".pkl"
 

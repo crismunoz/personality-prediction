@@ -47,7 +47,7 @@ def str_to_bool(value):
 def parse_args():
     ap = argparse.ArgumentParser()
     ap.add_argument("-inp_dir", type=str, default="pkl_data/")
-    ap.add_argument("-dataset", type=str, default="essays")
+    ap.add_argument("-dataset", type=str, default="status")
     ap.add_argument("-lr", type=float, default=5e-4)
     ap.add_argument("-batch_size", type=int, default=32)
     ap.add_argument("-epochs", type=int, default=10)
@@ -78,16 +78,16 @@ def parse_args():
 
 def parse_args_extractor():
     ap = argparse.ArgumentParser()
-    ap.add_argument("-dataset_type", type=str, default="essays")
+    ap.add_argument("--dataset_type", type=str, default="essays")
     # ap.add_argument("-dataset_type", type=str, default='pandora')  # pandora example
-    ap.add_argument("-token_length", type=int, default=512)
+    ap.add_argument("--token_length", type=int, default=512)
     # ap.add_argument("-datafile", type=str, default='data/pandora/')  # pandora example
-    ap.add_argument("-batch_size", type=str, default=32)
-    ap.add_argument("-embed", type=str, default="bert-base")
-    ap.add_argument("-op_dir", type=str, default="pkl_data/")
-    ap.add_argument("-mode", type=str, default="512_head")
-    ap.add_argument("-embed_mode", type=str, default="cls")
-    args = ap.parse_args()
+    ap.add_argument("--batch_size", type=str, default=32)
+    ap.add_argument("--embed", type=str, default="bert-base")
+    ap.add_argument("--op_dir", type=str, default="pkl_data/")
+    ap.add_argument("--mode", type=str, default="512_head")
+    ap.add_argument("--embed_mode", type=str, default="cls")
+    args = ap.parse_args([])
     return (
         args.dataset_type,
         args.token_length,

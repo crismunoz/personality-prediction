@@ -5,3 +5,4 @@ logs/
 explogs/
 data/pandora
 *.sbatch
+models/*

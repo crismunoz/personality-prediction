@@ -20,7 +20,7 @@ sys.path.insert(0, os.getcwd())
 import utils.gen_utils as utils
 
 
-def get_inputs(inp_dir, dataset, embed, embed_mode, mode, layer):
+def get_inputs(inp_dir, dataset, embed, embed_mode, mode, layer, n_hl):
     """Read data from pkl file and prepare for training."""
     file = open(
         inp_dir + dataset + "-" + embed + "-" + embed_mode + "-" + mode + ".pkl", "rb"
@@ -52,7 +52,7 @@ def get_inputs(inp_dir, dataset, embed, embed_mode, mode, layer):
     return inputs, full_targets
 
 
-def training(dataset, inputs, full_targets):
+def training(dataset, inputs, full_targets, hidden_dim):
     """Train MLP model for each trait on 10-fold corss-validtion."""
     if dataset == "kaggle":
         trait_labels = ["E", "N", "F", "J"]
@@ -95,6 +95,17 @@ def training(dataset, inputs, full_targets):
                 metrics=["mse", "accuracy"],
             )
 
+            model_dir = os.path.join(os.getcwd(),'models',dataset)
+            checkpoint_filepath = os.path.join(model_dir,f'{trait_labels[trait_idx]}_{k}','model')
+
+            model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+                filepath=checkpoint_filepath,
+                save_weights_only=True,
+                monitor='val_accuracy',
+                mode='max',
+                save_best_only=True)
+
+
             history = model.fit(
                 x_train,
                 y_train,
@@ -102,6 +113,7 @@ def training(dataset, inputs, full_targets):
                 batch_size=batch_size,
                 validation_data=(x_test, y_test),
                 verbose=0,
+                callbacks=[model_checkpoint_callback]
             )
 
             expdata["acc"].append(100 * max(history.history["val_accuracy"]))
@@ -186,6 +198,6 @@ if __name__ == "__main__":
         n_hl = 24
         hidden_dim = 1024
 
-    inputs, full_targets = get_inputs(inp_dir, dataset, embed, embed_mode, mode, layer)
-    df = training(dataset, inputs, full_targets)
+    inputs, full_targets = get_inputs(inp_dir, dataset, embed, embed_mode, mode, layer, n_hl)
+    df = training(dataset, inputs, full_targets, hidden_dim)
     logging(df, log_expdata)
