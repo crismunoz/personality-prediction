@@ -52,3 +52,22 @@ class MyMapDataset(Dataset):
 
     def __getitem__(self, idx):
         return (self.author_ids[idx], self.input_ids[idx], self.targets[idx])
+
+
+class MyNewMapDataset(Dataset):
+    def __init__(self, dataset, datafile, tokenizer, token_length, DEVICE, mode, chunk_id, total_chunks):
+        
+        if dataset=='generated_text':
+            author_ids, input_ids = dataset_processors.generated_text_embeddings(datafile, tokenizer, token_length, mode, chunk_id, total_chunks)
+
+        author_ids = torch.from_numpy(np.array(author_ids)).long().to(DEVICE)
+        input_ids = torch.from_numpy(np.array(input_ids)).long().to(DEVICE)
+
+        self.author_ids = author_ids
+        self.input_ids = input_ids
+
+    def __len__(self):
+        return len(self.input_ids)
+
+    def __getitem__(self, idx):
+        return (self.author_ids[idx], self.input_ids[idx])

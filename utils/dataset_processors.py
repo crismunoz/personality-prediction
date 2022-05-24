@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 import re
@@ -93,6 +94,119 @@ def load_status_df(datafile):
 
     return df
 
+def load_generated_text_df(datafile):
+    with open(datafile, "rt") as csvf:
+        csvreader = csv.reader(csvf, delimiter=",", quotechar='"')
+        first_line = True
+        columns=["user", "text", "token_len"]
+        df = []
+        for i,line in enumerate(csvreader):
+            if first_line:
+                first_line = False
+                continue
+
+            text = line[3]
+            df.append(
+                {
+                    "user": line[0],
+                    "text": text,
+                    "token_len": 0,
+                }
+            )
+
+    df = pd.DataFrame(df)
+    df = df[columns]
+    return df
+
+def generated_text_embeddings(datafile, tokenizer, token_length, mode, chunk_id, total_chunks):
+    dataset_dirname = os.path.dirname(datafile)
+    input_ids = []
+
+    df = load_generated_text_df(datafile)
+
+    chunk_size = (len(df)+total_chunks-1)//total_chunks
+    start = chunk_id*chunk_size
+    stop = (chunk_id+1)*chunk_size
+    df = df.iloc[start:stop]
+    cnt = 0
+
+    # sorting all essays in ascending order of their length
+    df['text'] = df['text'].apply(preprocess_text)
+    df = df.drop(df[df['text']==''].index).reset_index(drop=True)
+    df["token_len"] = df["text"].apply( lambda x: len(tokenizer.tokenize(x)))
+
+    df.sort_values(by=["token_len", "user"], inplace=True, ascending=True)
+    tmp_df = df["user"]
+    tmp_df.to_csv(os.path.join(dataset_dirname,"author_id_order.csv"), index_label="order")
+    print(df["token_len"].mean())
+
+    for ii in range(len(df)):
+        #text = preprocess_text(df["text"][ii])
+        text = df["text"][ii]
+        #if text=='':
+        #    continue
+        #print(text)
+        tokens = tokenizer.tokenize(text)
+
+        if mode == "normal" or mode == "512_head":
+            input_ids.append(
+                tokenizer.encode(
+                    tokens,
+                    add_special_tokens=True,
+                    max_length=token_length,
+                    pad_to_max_length=True,
+                )
+            )
+        elif mode == "512_tail":
+            input_ids.append(
+                tokenizer.encode(
+                    tokens[-(token_length - 2) :],
+                    add_special_tokens=True,
+                    max_length=token_length,
+                    pad_to_max_length=True,
+                )
+            )
+        elif mode == "256_head_tail":
+            input_ids.append(
+                tokenizer.encode(
+                    tokens[: (token_length - 1)] + tokens[-(token_length - 1) :],
+                    add_special_tokens=True,
+                    max_length=token_length,
+                    pad_to_max_length=True,
+                )
+            )
+
+        elif mode == "docbert":
+            docmax_len = 2048
+            subdoc_len = 512
+            max_subdoc_num = docmax_len // subdoc_len
+            subdoc_tokens = [
+                tokens[i : i + subdoc_len] for i in range(0, len(tokens), subdoc_len)
+            ][:max_subdoc_num]
+            # print(subdoc_tokens)
+            token_ids = [
+                tokenizer.encode(
+                    x,
+                    add_special_tokens=True,
+                    max_length=token_length,
+                    pad_to_max_length=True,
+                )
+                for x in subdoc_tokens
+            ]
+            # print(token_ids)
+            token_ids = np.array(token_ids).astype(int)
+
+            buffer_len = docmax_len // subdoc_len - token_ids.shape[0]
+            # print(buffer_len)
+            tmp = np.full(shape=(buffer_len, token_length), fill_value=0, dtype=int)
+            token_ids = np.concatenate((token_ids, tmp), axis=0)
+
+            input_ids.append(token_ids)
+        cnt += 1
+
+    author_ids = np.array(df.index)
+    print("loaded all input_ids and targets from the data file!")
+    return author_ids, input_ids
 
 def status_embeddings(datafile, tokenizer, token_length, mode):
     targets = []
