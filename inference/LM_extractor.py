@@ -152,7 +152,7 @@ if __name__ == "__main__":
     all_author_ids = []
 
     # get bert embedding for each input
-    for author_ids, input_ids in tqdm(data_loader, total=len(map_dataset)):
+    for author_ids, input_ids in tqdm(data_loader, total=(len(map_dataset)+batch_size-1)//batch_size):
         with torch.no_grad():
             all_author_ids.append(author_ids.cpu().numpy())
             hidden_features = extract_bert_features(input_ids, model, mode, n_hl, embed_mode, hidden_features)
