@@ -87,7 +87,7 @@ def training(dataset, dataset_trained, best_folds, inputs, hidden_dim):
             ypred = model.predict(x_train[start:stop], verbose=0)
             ypreds.append(ypred)
         
-        ypreds = np.concat(ypreds, axix=0)
+        ypreds = np.concatenate(ypreds, axis=0)
 
         expdata[trait_labels[trait_idx]] = ypreds
 
