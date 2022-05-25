@@ -77,7 +77,7 @@ def training(dataset, dataset_trained, best_folds, inputs, hidden_dim):
 
         # Predict the text
         x_train = inputs
-        batch_size = 10
+        batch_size = 40
         num_batchs = (x_train.shape[0]+batch_size-1)//batch_size
 
         ypreds = []
@@ -91,6 +91,7 @@ def training(dataset, dataset_trained, best_folds, inputs, hidden_dim):
 
         expdata[trait_labels[trait_idx]] = ypreds
 
+    expdata = {f"{c}_{i}":expdata[c][:,i] for c in expdata for i in range(2)}
     df = pd.DataFrame.from_dict(expdata)
     return df
 
@@ -133,7 +134,7 @@ def logging(df, log_expdata=True):
             df.to_csv(path + "expdata.csv", mode="a", header=False)
     else:
         Path(path).mkdir(parents=True, exist_ok=True)
-        df.to_csv(path + "dataset_inference.csv", header=True)
+        df.to_csv(path + f"dataset_inference_{dataset_trained}_{dataset}.csv", header=True)
 
 
 
@@ -157,7 +158,7 @@ if __name__ == "__main__":
     log_expdata = False
     network = "MLP"
     MODEL_INPUT = "LM_features"
-    dataset_trained = 'essays'
+    dataset_trained = 'status'
     
     if dataset_trained=='essays':
         best_folds = {'AGR': 2, 'CON': 6, 'EXT': 9, 'NEU': 7, 'OPN': 3}
