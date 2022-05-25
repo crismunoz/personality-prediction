@@ -105,10 +105,10 @@ def load_generated_text_df(datafile):
                 first_line = False
                 continue
 
-            text = line[3]
+            text = line[4]
             df.append(
                 {
-                    "user": line[0],
+                    "user": line[1],
                     "text": text,
                     "token_len": 0,
                 }
