@@ -143,6 +143,7 @@ if __name__ == "__main__":
     (
         inp_dir,
         dataset,
+        dataset_trained,
         lr,
         batch_size,
         epochs,
@@ -158,7 +159,6 @@ if __name__ == "__main__":
     log_expdata = False
     network = "MLP"
     MODEL_INPUT = "LM_features"
-    dataset_trained = 'status'
     
     if dataset_trained=='essays':
         best_folds = {'AGR': 2, 'CON': 6, 'EXT': 9, 'NEU': 7, 'OPN': 3}

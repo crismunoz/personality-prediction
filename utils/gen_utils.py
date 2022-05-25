@@ -79,6 +79,7 @@ def parse_args_inference():
     ap = argparse.ArgumentParser()
     ap.add_argument("-inp_dir", type=str, default="pkl_data/")
     ap.add_argument("-dataset", type=str, default="generated_text")
+    ap.add_argument("-dataset_trained", type=str, default="")
     ap.add_argument("-lr", type=float, default=5e-4)
     ap.add_argument("-batch_size", type=int, default=32)
     ap.add_argument("-epochs", type=int, default=10)
@@ -95,6 +96,7 @@ def parse_args_inference():
     return (
         args.inp_dir,
         args.dataset,
+        args.dataset_trained,
         args.lr,
         args.batch_size,
         args.epochs,
