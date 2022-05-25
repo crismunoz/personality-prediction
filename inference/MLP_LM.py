@@ -158,8 +158,12 @@ if __name__ == "__main__":
     network = "MLP"
     MODEL_INPUT = "LM_features"
     dataset_trained = 'essays'
+    
     if dataset_trained=='essays':
         best_folds = {'AGR': 2, 'CON': 6, 'EXT': 9, 'NEU': 7, 'OPN': 3}
+    
+    elif dataset_trained=='status':
+        best_folds = {'AGR': 8, 'CON': 1, 'EXT': 1, 'NEU': 1, 'OPN': 1}
 
     print("{} : {} : {} : {} : {}".format(dataset, embed, layer, mode, embed_mode))
     n_classes = 2
