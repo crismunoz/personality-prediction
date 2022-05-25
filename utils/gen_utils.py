@@ -75,6 +75,37 @@ def parse_args():
         args.jobid,
     )
 
+def parse_args_regression():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-inp_dir", type=str, default="pkl_data/")
+    ap.add_argument("-dataset", type=str, default="status_regressor")
+    ap.add_argument("-lr", type=float, default=5e-4)
+    ap.add_argument("-batch_size", type=int, default=32)
+    ap.add_argument("-epochs", type=int, default=100)
+    # ap.add_argument("-seed", type=int, default=np.random.randint(0,1000))
+    ap.add_argument(
+        "-log_expdata", type=str_to_bool, nargs="?", const=True, default=True
+    )
+    ap.add_argument("-embed", type=str, default="bert-base")
+    ap.add_argument("-layer", type=str, default="11")
+    ap.add_argument("-mode", type=str, default="512_head")
+    ap.add_argument("-embed_mode", type=str, default="cls")
+    ap.add_argument("-jobid", type=int, default=0)
+    args = ap.parse_args()
+    return (
+        args.inp_dir,
+        args.dataset,
+        args.lr,
+        args.batch_size,
+        args.epochs,
+        args.log_expdata,
+        args.embed,
+        args.layer,
+        args.mode,
+        args.embed_mode,
+        args.jobid,
+    )
+
 def parse_args_inference():
     ap = argparse.ArgumentParser()
     ap.add_argument("-inp_dir", type=str, default="pkl_data/")
@@ -110,10 +141,10 @@ def parse_args_inference():
 
 def parse_args_extractor():
     ap = argparse.ArgumentParser()
-    ap.add_argument("-dataset_type", type=str, default="")
+    ap.add_argument("-dataset_type", type=str, default="status_regressor")
     ap.add_argument("-datafile", type=str, default="")
     # ap.add_argument("-dataset_type", type=str, default='pandora')  # pandora example
-    ap.add_argument("-token_length", type=int, default=512)
+    ap.add_argument("-token_length", type=int, default=256)
     # ap.add_argument("-datafile", type=str, default='data/pandora/')  # pandora example
     ap.add_argument("-batch_size", type=str, default=32)
     ap.add_argument("-embed", type=str, default="bert-base")
@@ -128,8 +159,7 @@ def parse_args_extractor():
         args.embed,
         args.op_dir,
         args.mode,
-        args.embed_mode,
-        args.datafile,
+        args.embed_mode
     )
 
 def parse_args_extractor_inference():

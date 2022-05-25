@@ -33,12 +33,17 @@ class MyMapDataset(Dataset):
             author_ids, input_ids, targets = dataset_processors.status_embeddings(
                 datafile, tokenizer, token_length, mode
             )
+        elif dataset == "status_regressor":
+            datafile = "data/myPersonality/mypersonality_final.csv"
+            author_ids, input_ids, targets = dataset_processors.status_regressor_embeddings(
+                datafile, tokenizer, token_length, mode
+            )
 
         author_ids = torch.from_numpy(np.array(author_ids)).long().to(DEVICE)
         input_ids = torch.from_numpy(np.array(input_ids)).long().to(DEVICE)
         targets = torch.from_numpy(np.array(targets))
 
-        if dataset == "pandora":
+        if dataset in ["pandora" , "status_regressor"]:
             targets = targets.float().to(DEVICE)
         else:
             targets = targets.long().to(DEVICE)
