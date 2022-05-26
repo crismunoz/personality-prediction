@@ -1,17 +1,16 @@
 import os
 import sys
-from tqdm import tqdm
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 import tensorflow as tf
-from sklearn.model_selection import KFold
+from sklearn.model_selection import StratifiedKFold
 import numpy as np
 import re
 import pickle
 import time
 import pandas as pd
 from pathlib import Path
-
+from tqdm import tqdm
 # add parent directory to the path as well, if running from the finetune folder
 parent_dir = os.path.dirname(os.getcwd())
 sys.path.insert(0, parent_dir)
@@ -19,7 +18,6 @@ sys.path.insert(0, parent_dir)
 sys.path.insert(0, os.getcwd())
 
 import utils.gen_utils as utils
-
 
 def get_inputs(inp_dir, dataset, embed, embed_mode, mode, layer, n_hl):
     """Read data from pkl file and prepare for training."""
@@ -42,84 +40,90 @@ def get_inputs(inp_dir, dataset, embed, embed_mode, mode, layer, n_hl):
     # getting the output for the required layer of BERT using alphaW
     inputs = []
     targets = []
+    ids = []
     n_batches = len(data_y)
     for ii in range(n_batches):
         inputs.extend(np.einsum("k,kij->ij", alphaW, data_x[ii]))
         targets.extend(data_y[ii])
+        ids.extend(author_ids[ii])
 
     inputs = np.array(inputs)
     full_targets = np.array(targets)
+    full_ids = np.array(ids)
 
-    return inputs, full_targets
+    return inputs, full_targets,full_ids
+
+def get_inputs_chunks(inp_dir, dataset, embed, embed_mode, mode, layer, n_hl):
+    """Read data from pkl file and prepare for training."""
+    data_x = []
+    for chunk_id in range(2):
+        file = open(
+            inp_dir + dataset + "-" + embed + "-" + embed_mode + "-" + mode + "-" + str(chunk_id) +".pkl", "rb"
+        )
+        data = pickle.load(file)
+        author_ids, data_x_1 = list(zip(*data))
+        file.close()
+        data_x+=data_x_1
+
+    # alphaW is responsible for which BERT layer embedding we will be using
+    if layer == "all":
+        alphaW = np.full([n_hl], 1 / n_hl)
+
+    else:
+        alphaW = np.zeros([n_hl])
+        alphaW[int(layer) - 1] = 1
+
+    # just changing the way data is stored (tuples of minibatches) and
+    # getting the output for the required layer of BERT using alphaW
+    inputs = []
+    n_batches = len(data_x)
+    for ii in range(n_batches):
+        inputs.extend(np.einsum("k,kij->ij", alphaW, data_x[ii]))
+
+    inputs = np.array(inputs)
+    return inputs
 
 
-def training(dataset, inputs, full_targets, hidden_dim):
+def training(dataset, dataset_trained, best_folds, inputs, hidden_dim, n_classes):
     """Train MLP model for each trait on 10-fold corss-validtion."""
     if dataset == "kaggle":
         trait_labels = ["E", "N", "F", "J"]
     else:
         #trait_labels = ["EXT", "NEU", "AGR", "CON", "OPN"]
-        trait_labels = ["EXT"]
+        trait_labels = ["EXT"]#, "NEU", "AGR", "CON", "OPN"]
 
-    n_splits = 10
-    fold_acc = {}
     expdata = {}
-    expdata["mse"], expdata["trait"], expdata["fold"] = [], [], []
 
-    for trait_idx in range(len(trait_labels)):
-        # convert targets to one-hot encoding
-        targets = full_targets[:, trait_idx].astype('int32')#-1
-        #targets = (targets-2.5)/5
-        n_data = targets.shape[0]
+    for trait_idx in range(len(trait_labels)):       
+                    
+        # Build the model
+        model = tf.keras.models.Sequential()
+        model.add(
+            tf.keras.layers.Dense(50, input_dim=hidden_dim, activation="relu")
+        )
+        model.add(tf.keras.layers.Dense(n_classes))
 
-        expdata["trait"].extend([trait_labels[trait_idx]] * n_splits)
-        expdata["fold"].extend(np.arange(1, n_splits + 1))
+        # Load weights
+        model_dir = os.path.join(os.getcwd(),'models',dataset_trained)
+        trait = trait_labels[trait_idx]
+        checkpoint_filepath = os.path.join(model_dir,f'{trait}_{best_folds[trait]}','model')
+        model.load_weights(checkpoint_filepath)
 
-        #skf = StratifiedKFold(n_splits=n_splits, shuffle=False)
-        kf = KFold(n_splits=n_splits)
-        k = -1
-        for train_index, test_index in tqdm(kf.split(inputs), total=n_splits):
-            x_train, x_test = inputs[train_index], inputs[test_index]
-            y_train, y_test = targets[train_index], targets[test_index]
-            # converting to one-hot embedding
-            #y_train = tf.keras.utils.to_categorical(y_train, num_classes=n_classes)
-            #y_test = tf.keras.utils.to_categorical(y_test, num_classes=n_classes)
-            model = tf.keras.models.Sequential()
+        # Predict the text
+        x_train = inputs
+        batch_size = 40
+        num_batchs = (x_train.shape[0]+batch_size-1)//batch_size
 
-            # define the neural network architecture
-            model.add(
-                tf.keras.layers.Dense(50, input_dim=hidden_dim, activation="relu")
-            )
-            model.add(tf.keras.layers.Dense(n_classes))
+        ypreds = []
+        for ib in tqdm(range(num_batchs), total=num_batchs):
+            start = ib*batch_size
+            stop = (ib+1)*batch_size
+            ypred = model.predict(x_train[start:stop], verbose=0)
+            ypreds.append(ypred)
+        
+        ypreds = np.concatenate(ypreds, axis=0)
 
-            k += 1
-            model.compile(
-                optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
-                loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
-                metrics=["accuracy"],
-            )
-
-            model_dir = os.path.join(os.getcwd(),'models',dataset)
-            checkpoint_filepath = os.path.join(model_dir,f'{trait_labels[trait_idx]}_{k}','model')
-
-            model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-                filepath=checkpoint_filepath,
-                save_weights_only=True,
-                monitor='val_accuracy',
-                mode='max',
-                save_best_only=True)
-
-            history = model.fit(
-                x_train,
-                y_train,
-                epochs=epochs,
-                batch_size=batch_size,
-                validation_data=(x_test, y_test),
-                verbose=1,
-                callbacks=[model_checkpoint_callback]
-            )
-            mse_error = min(history.history["val_accuracy"])
-    print(expdata)
+        expdata[trait_labels[trait_idx]] = np.reshape(ypreds,[-1])
     df = pd.DataFrame.from_dict(expdata)
     return df
 
@@ -128,7 +132,6 @@ def logging(df, log_expdata=True):
     """Save results and each models config and hyper parameters."""
     (
         df["network"],
-        df["dataset"],
         df["lr"],
         df["batch_size"],
         df["epochs"],
@@ -140,7 +143,6 @@ def logging(df, log_expdata=True):
         df["jobid"],
     ) = (
         network,
-        dataset,
         lr,
         batch_size,
         epochs,
@@ -162,29 +164,41 @@ def logging(df, log_expdata=True):
             df.to_csv(path + "expdata.csv", mode="a", header=True)
         else:
             df.to_csv(path + "expdata.csv", mode="a", header=False)
+    else:
+        Path(path).mkdir(parents=True, exist_ok=True)
+        df.to_csv(path + f"dataset_inference_{dataset_trained}_{dataset}.csv", header=True)
+
+
 
 
 if __name__ == "__main__":
     (
         inp_dir,
         dataset,
+        dataset_trained,
         lr,
         batch_size,
         epochs,
-        log_expdata,
+        _,
         embed,
         layer,
         mode,
         embed_mode,
         jobid,
-    ) = utils.parse_args_regression()
+    ) = utils.parse_args_inference()
     # embed_mode {mean, cls}
     # mode {512_head, 512_tail, 256_head_tail}
-
-    network = "MLP_regressor"
+    log_expdata = False
+    network = "MLP"
     MODEL_INPUT = "LM_features"
+    
+    if dataset_trained=='status_regressor':
+        best_folds = {'AGR': 3, 'CON': 3, 'EXT': 6, 'NEU': 1, 'OPN': 2}
+    
+
+
     print("{} : {} : {} : {} : {}".format(dataset, embed, layer, mode, embed_mode))
-    n_classes = 5
+    n_classes = 1
     seed = jobid
     np.random.seed(seed)
     tf.random.set_seed(seed)
@@ -200,6 +214,6 @@ if __name__ == "__main__":
         n_hl = 24
         hidden_dim = 1024
 
-    inputs, full_targets = get_inputs(inp_dir, dataset, embed, embed_mode, mode, layer, n_hl)
-    df = training(dataset, inputs, full_targets, hidden_dim)
+    inputs = get_inputs(inp_dir, dataset, embed, embed_mode, mode, layer, n_hl)
+    df = training(dataset, dataset_trained, best_folds, inputs, hidden_dim, n_classes)
     logging(df, log_expdata)

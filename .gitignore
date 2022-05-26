@@ -6,3 +6,7 @@ explogs/
 data/pandora
 *.sbatch
 models/*
+logs_regressor/*
+results_essays
+results_status
+*.ipynb
